@@ -1,0 +1,16 @@
+# MATLAB geçici dosyaları
+*.asv
+*.m~
+*.slxc
+*.matlab
+scc_info.txt
+
+# Python geçici dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+
+# İşletim sistemi ve geçici dosyalar
+.DS_Store
+Thumbs.db
+desktop.ini
