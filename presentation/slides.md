@@ -224,3 +224,4 @@
 - **Soru - Cevap**
 > **Konuşmacı Notu (20 sn):**  
 > "Beni sabırla dinlediğiniz için teşekkür ederim. Projenin tüm kaynak kodları, testleri ve bilimsel raporu GitHub depomuzda erişime açıktır. Şimdi sorularınızı yanıtlamaktan memnuniyet duyarım."
+

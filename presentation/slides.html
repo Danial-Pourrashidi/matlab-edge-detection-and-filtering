@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Görüntü İşleme ile Kenar Tespit ve Filtreleme Algoritmaları - Sunum</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --blue: #1E3A8A;
+      --orange: #EA580C;
+      --teal: #0D9488;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text: #334155;
+      --muted: #64748B;
+      --border: #E2E8F0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--navy);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: var(--navy);
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--orange);
+    }
+    .header-title { font-size: 14px; font-weight: 600; color: #E2E8F0; }
+    .header-sub { font-size: 12px; color: var(--teal); }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    button {
+      background: var(--blue);
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    button:hover { background: #2563EB; }
+    #slide-indicator { color: white; font-size: 13px; font-weight: 600; min-width: 70px; text-align: center; }
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background: #020617;
+    }
+    .slide-viewport {
+      width: 100%;
+      max-width: 1200px;
+      height: 90vh;
+      max-height: 675px;
+      aspect-ratio: 16 / 9;
+      background: var(--bg);
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .slide {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 48px 24px 48px;
+      position: relative;
+    }
+    .slide.active { display: flex; }
+    .slide-tag {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--orange);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .slide-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .accent-bar {
+      width: 60px;
+      height: 4px;
+      background: var(--teal);
+      border-radius: 2px;
+      margin-bottom: 20px;
+    }
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex: 1;
+      align-items: center;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .card h3 { font-size: 16px; color: var(--navy); margin-bottom: 12px; font-weight: 700; }
+    .card ul { list-style: none; }
+    .card li { margin-bottom: 10px; font-size: 13px; line-height: 1.5; color: var(--text); }
+    .card li strong { color: var(--blue); }
+    .slide-img {
+      width: 100%;
+      max-height: 380px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    th { background: var(--navy); color: white; padding: 10px; text-align: left; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:nth-child(even) { background: #F1F5F9; }
+    .speaker-notes {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      color: #E2E8F0;
+      padding: 12px 24px;
+      font-size: 12px;
+      line-height: 1.4;
+      display: none;
+      border-top: 2px solid var(--teal);
+    }
+    .speaker-notes.visible { display: block; }
+    .notes-toggle { background: var(--teal); margin-left: 12px; }
+    /* Slide 1 Cover specific */
+    .cover-slide {
+      background: var(--navy);
+      color: white;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px;
+    }
+    .cover-univ { font-size: 16px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+    .cover-dept { font-size: 13px; color: #94A3B8; margin-bottom: 30px; }
+    .cover-title { font-size: 38px; font-weight: 900; line-height: 1.2; margin-bottom: 16px; color: white; }
+    .cover-sub { font-size: 16px; color: #CBD5E1; margin-bottom: 40px; }
+    .cover-meta {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 16px 24px;
+      border-radius: 8px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <div class="header-title">Kocaeli Üniversitesi • Bilimsel Hesaplama Teknikleri Dersi</div>
+      <div class="header-sub">Görüntü İşleme ile Kenar Tespit ve Filtreleme Algoritmaları</div>
+    </div>
+    <div class="controls">
+      <button onclick="prevSlide()">◀ Önceki</button>
+      <span id="slide-indicator">1 / 17</span>
+      <button onclick="nextSlide()">Sonraki ▶</button>
+      <button class="notes-toggle" onclick="toggleNotes()">Konuşmacı Notu [N]</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="slide-viewport">
+
+      <!-- SLAYT 1 -->
+      <div class="slide cover-slide active">
+        <div class="cover-univ">KOCAELİ ÜNİVERSİTESİ</div>
+        <div class="cover-dept">Yapay Zekâ ve Makine Öğrenmesi Bölümü • Bilimsel Hesaplama Teknikleri</div>
+        <div class="cover-title">Görüntü İşleme ile Kenar Tespit ve<br>Filtreleme Algoritmaları</div>
+        <div class="cover-sub">2B Konvolüsyon, Gauss Yumuşatma, Sobel, Prewitt ve Laplacian Operatörlerinin Sıfırdan Analizi</div>
+        <div class="cover-meta">
+          <div><strong>Yürütücü:</strong> Danial Pourrashidi</div>
+          <div><strong>Danışman:</strong> Dr. Öğr. Üyesi / Ders Sorumlusu</div>
+          <div><strong>Yıl:</strong> 2026</div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> Sayın jüri üyeleri ve değerli hocalarım, hoş geldiniz. Bugün sizlere Bilimsel Hesaplama Teknikleri dersi kapsamında hazırladığım projeyi sunacağım. Çalışmamızda Image Processing Toolbox kullanmaksızın sıfırdan 2B konvolüsyon ve türev filtrelerini geliştirdik.
+        </div>
+      </div>
+
+      <!-- SLAYT 2 -->
+      <div class="slide">
+        <div class="slide-tag">GENEL BAKIŞ</div>
+        <div class="slide-title">Sunum Planı ve İçindekiler</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="card">
+            <ul>
+              <li><strong>01. Problem Tanımı:</strong> Gürültü ve diferansiyel zaafları</li>
+              <li><strong>02. Proje Hedefleri:</strong> Sıfırdan modüler mimari felsefesi</li>
+              <li><strong>03. 2B Konvolüsyon:</strong> Çekirdek rotasyonu ve sınır dolguları</li>
+              <li><strong>04. 2D Gauss Filtresi:</strong> Parametrik gürültü bastırma matematiği</li>
+            </ul>
+          </div>
+          <div class="card">
+            <ul>
+              <li><strong>05. Kenar Dedektörleri:</strong> Sobel, Prewitt ve Laplacian (Sıfır Geçişi)</li>
+              <li><strong>06. Sayısal Doğrulama:</strong> my_conv2 vs MATLAB conv2/imfilter ($10^{-16}$)</li>
+              <li><strong>07. Tartışma & Gelecek:</strong> Karşılaştırma matrisi ve Canny/CUDA planı</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (30 sn):</strong> Sunumumuz 7 ana bölümden oluşmaktadır. Önce problemi ve motivasyonumuzu ele alacak, ardından matematiksel temelleri ve deneysel metriklerimizi inceleyeceğiz.
+        </div>
+      </div>
+
+      <!-- SLAYT 3 -->
+      <div class="slide">
+        <div class="slide-tag">MOTİVASYON</div>
+        <div class="slide-title">Problem Tanımı: Sayısal Görüntülerde Kenar Tespiti</div>
+        <div class="accent-bar"></div>
+        <div class="card" style="margin-bottom: 16px;">
+          <h3>Kenarların Bilgisayarla Görmedeki Rolü</h3>
+          <p style="font-size: 13px; line-height: 1.5;">Kenarlar nesne sınırlarını, geometrik konturları ve derinlik süreksizliklerini taşır. Segmentasyon ve öznitelik çıkarımının temelidir.</p>
+        </div>
+        <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="card">
+            <h3>Gerçek Dünya Sensör Gürültüsü</h3>
+            <p style="font-size: 13px; line-height: 1.5;">Kamera sensörleri ve aktarım kanalları Gauss ve tuz-biber gürültüsü üretir; piksel parlaklıkları rastgele salınır.</p>
+          </div>
+          <div class="card">
+            <h3>Türev Operatörlerinin İkilemi</h3>
+            <p style="font-size: 13px; line-height: 1.5;">Türev alma işlemi yüksek frekansları yükseltir. Filtrelenmemiş gürültü türev anında sahte kenar patlamalarına yol açar.</p>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> Kenar tespiti türeve dayanır; ancak türev yüksek frekanslı gürültüleri katbekat şiddetlendirir. Bu ikilem, gürültü temizleme ile kenar netliği arasında hassas bir denge kurmayı zorunlu kılar.
+        </div>
+      </div>
+
+      <!-- SLAYT 4 -->
+      <div class="slide">
+        <div class="slide-tag">KAPSAM</div>
+        <div class="slide-title">Projenin Amacı ve Bilimsel Hedefleri</div>
+        <div class="accent-bar"></div>
+        <div class="card">
+          <ul>
+            <li><strong>Sıfırdan 2B Konvolüsyon:</strong> Çift for döngüsü ve 180° çekirdek rotasyonu ile `my_conv2.m` fonksiyonu.</li>
+            <li><strong>Sınır Koşulları:</strong> 'zero', 'replicate' ve 'symmetric' dolgu modlarının saf indisleme ile kodlanması.</li>
+            <li><strong>Parametrik Gauss Filtreleme:</strong> 3x3, 5x5, 7x7 boyutları ve sigma (0.5, 1.0, 2.0) testleri ile optimal PSNR arayışı.</li>
+            <li><strong>1. ve 2. Derece Türev Analizi:</strong> Sobel, Prewitt gradyanları ve Laplacian (Sıfır Geçişi) uygulamaları.</li>
+            <li><strong>Sayısal Doğrulama:</strong> MATLAB 'conv2' ve 'imfilter' ile maksimum hata ($10^{-16}$) ve süre kıyaslaması.</li>
+          </ul>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> Hazır toolbox fonksiyonlarını siyah kutu olarak kullanmak yerine tüm matematiksel çekirdekleri for döngüleriyle sıfırdan yazdık ve sayısal denkliğini ispatladık.
+        </div>
+      </div>
+
+      <!-- SLAYT 5 -->
+      <div class="slide">
+        <div class="slide-tag">MATEMATİKSEL TEMELLER</div>
+        <div class="slide-title">Teorik Arka Plan: 2B Konvolüsyon ve Sınır Dolguları</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>2D Konvolüsyon Formülü</h3>
+            <p style="font-size: 14px; font-weight: bold; color: var(--orange); margin-bottom: 10px;">
+              $$(I * K)(x, y) = \sum_u \sum_v I(x - u, y - v) K(u, v)$$
+            </p>
+            <ul>
+              <li><strong>Çekirdek Çevirme:</strong> $K_{\text{rot}} = \text{rot90}(K, 2)$</li>
+              <li><strong>Korelasyon vs Konvolüsyon:</strong> Asimetrik türev çekirdeklerinde yön doğruluğu için 180° rotasyon şarttır.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Sınır Dolgusu (Padding) Yöntemleri</h3>
+            <ul>
+              <li><strong>Zero-Padding:</strong> Kenarlar 0 ile doldurulur; kararma riski taşır.</li>
+              <li><strong>Replicate:</strong> Uç pikseller tekrarlanır; kenar tespiti için en kararlısıdır.</li>
+              <li><strong>Symmetric:</strong> Ayna yansıması yapılır; sürekliliği korur.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> Konvolüsyon ile korelasyon arasındaki en temel fark filtre matrisinin 180 derece döndürülmesidir. Sınır koşullarında 'replicate' dolgusu kenar koyulaşmalarını başarıyla engellemiştir.
+        </div>
+      </div>
+
+      <!-- SLAYT 6 -->
+      <div class="slide">
+        <div class="slide-tag">FİLTRELEME</div>
+        <div class="slide-title">2D Gauss Filtresi ve Gürültü Azaltma</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Gauss Dağılımı Matematiği</h3>
+            <p style="font-size: 13px; font-weight: bold; color: var(--orange); margin-bottom: 8px;">
+              $$G(x, y) = \frac{1}{2\pi \sigma^2} e^{-\frac{x^2 + y^2}{2\sigma^2}}$$
+            </p>
+            <ul>
+              <li><strong>Normalizasyon:</strong> $\sum K(u, v) = 1$ ile parlaklık korunur.</li>
+              <li><strong>Sigma (σ) Etkisi:</strong> Küçük $\sigma$ yetersiz kalırken, büyük $\sigma$ kenarları aşırı eritir.</li>
+              <li><strong>Optimal Sonuç:</strong> $5\times5, \sigma=1.0 \to \text{PSNR} = 26.46\text{ dB}$.</li>
+            </ul>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig02_gaussian_filtering_grid.png" alt="Gauss Grid">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> Sağdaki figürde 9 farklı Gauss varyasyonunu görüyorsunuz. 5x5 boyutunda sigma=1.0 seçildiğinde gürültü bastırılırken kenarlar korunmuş ve en yüksek PSNR (26.46 dB) elde edilmiştir.
+        </div>
+      </div>
+
+      <!-- SLAYT 7 -->
+      <div class="slide">
+        <div class="slide-tag">GÜRÜLTÜ MODELİ</div>
+        <div class="slide-title">Gürültü Türleri ve Kenar Tespiti Üzerindeki Etkisi</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Yapay Gürültü Enjeksiyonu</h3>
+            <ul>
+              <li><strong>Gauss Gürültüsü:</strong> $I + \mathcal{N}(0, \sigma_n^2)$ (sensör ve termal dalgalanmalar).</li>
+              <li><strong>Tuz-Biber:</strong> Piksellerin rastgele 0 veya 1 olması (aktarım hataları).</li>
+              <li><strong>Yıkıcı Etki:</strong> Filtresiz diferansiyel operatörler her gürültü pikselini devasa bir kenar olarak algılar.</li>
+            </ul>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig01_original_and_noise.png" alt="Noise">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> İki farklı yapay gürültü simüle ettik. Sağdaki görselde orijinal görüntü ile Gauss ve tuz-biber gürültülerinin yarattığı bozulmayı inceleyebilirsiniz.
+        </div>
+      </div>
+
+      <!-- SLAYT 8 -->
+      <div class="slide">
+        <div class="slide-tag">1. DERECE TÜREV</div>
+        <div class="slide-title">Sobel Operatörü ve Gradyan Vektörü</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Sobel Çekirdekleri</h3>
+            <p style="font-size: 11px; margin-bottom: 6px;">
+              $$S_x = \begin{bmatrix}-1&0&1\\-2&0&2\\-1&0&1\end{bmatrix}, \quad S_y = \begin{bmatrix}-1&-2&-1\\0&0&0\\1&2&1\end{bmatrix}$$
+            </p>
+            <ul>
+              <li><strong>Merkez Ağırlığı:</strong> 2 katsayısı türev anında yerel Gauss yumuşatması katar.</li>
+              <li><strong>Büyüklük & Yön:</strong> $M = \sqrt{G_x^2 + G_y^2}$, $\theta = \text{atan2}(G_y, G_x)$.</li>
+              <li><strong>Eşikleme:</strong> Adaptif istatistiksel eşik ($T = \mu + 1.2\sigma$).</li>
+            </ul>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig03_sobel_analysis.png" alt="Sobel">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> Sobel operatörü merkez piksellere 2 katsayısı vererek türev anında yerel bir yumuşatma sağlar. Sağdaki çıktıda Gx, Gy, büyüklük, renkli yön haritası ve ikili kenarlar görülmektedir.
+        </div>
+      </div>
+
+      <!-- SLAYT 9 -->
+      <div class="slide">
+        <div class="slide-tag">1. DERECE TÜREV</div>
+        <div class="slide-title">Prewitt Operatörü ve Sobel ile Kıyaslama</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Prewitt Çekirdekleri</h3>
+            <p style="font-size: 11px; margin-bottom: 6px;">
+              $$P_x = \begin{bmatrix}-1&0&1\\-1&0&1\\-1&0&1\end{bmatrix}, \quad P_y = \begin{bmatrix}-1&-1&-1\\0&0&0\\1&1&1\end{bmatrix}$$
+            </p>
+            <ul>
+              <li><strong>Düz Ortalama:</strong> Komşuluklar eşit katsayılarla toplanır.</li>
+              <li><strong>Sobel Farkı:</strong> Hesaplaması basittir ancak köşegenlerde gürültüye biraz daha açıktır.</li>
+            </ul>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig04_prewitt_analysis.png" alt="Prewitt">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> Prewitt operatörü düz aritmetik ortalama kullanır. Sobel'e göre biraz daha pürüzlü kenarlar üretse de temel gradyan yönlerini başarıyla çıkarır.
+        </div>
+      </div>
+
+      <!-- SLAYT 10 -->
+      <div class="slide">
+        <div class="slide-tag">2. DERECE TÜREV</div>
+        <div class="slide-title">Laplacian Operatörü ve Sıfır Geçişi (Zero-Crossing)</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Laplacian Matematiği</h3>
+            <p style="font-size: 12px; margin-bottom: 6px;">
+              $$\nabla^2 I = \frac{\partial^2 I}{\partial x^2} + \frac{\partial^2 I}{\partial y^2}, \quad L_4 = \begin{bmatrix}0&1&0\\1&-4&1\\0&1&0\end{bmatrix}$$
+            </p>
+            <ul>
+              <li><strong>Mutlak Eşikleme:</strong> $|\nabla^2 I| \ge T$ (kalın kenarlar).</li>
+              <li><strong>Sıfır Geçişi (Zero-Crossing):</strong> Komşularda zıt işaret ($v_1 \cdot v_2 < 0$) ve dik eğim kontrolü ile tek piksel kalınlığında kapalı kontur üretir.</li>
+            </ul>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig05_laplacian_analysis.png" alt="Laplacian">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (45 sn):</strong> Laplacian ikinci türevdir. Kenar geçişlerinde ikinci türev sıfırdan geçer. Geliştirdiğimiz sıfır geçişi algoritması tek piksel kalınlığında mükemmel hatlar üretmiştir.
+        </div>
+      </div>
+
+      <!-- SLAYT 11 -->
+      <div class="slide">
+        <div class="slide-tag">YAZILIM MİMARİSİ</div>
+        <div class="slide-title">Uygulama Mimarisi ve Modüler Yapı</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>İşlem Hattı (Pipeline)</h3>
+            <ul>
+              <li>1. Giriş Görüntüsü & Double Normalizasyon</li>
+              <li>2. add_noise.m ile Gürültü Simülasyonu</li>
+              <li>3. gaussian_kernel.m ile Yumuşatma</li>
+              <li>4. Sobel, Prewitt, Laplacian Dedektörleri</li>
+              <li>5. evaluate_metrics.m ile CSV Raporlama</li>
+            </ul>
+          </div>
+          <div class="card" style="background: var(--navy); color: white;">
+            <h3 style="color: var(--teal);">Geliştirilen Bağımsız Modüller</h3>
+            <ul style="color: #CBD5E1;">
+              <li>• my_conv2.m (For döngülü 2B konvolüsyon)</li>
+              <li>• gaussian_kernel.m & log_kernel.m</li>
+              <li>• apply_sobel.m & apply_prewitt.m</li>
+              <li>• apply_laplacian.m & non_maximum_suppression.m</li>
+              <li>• test_my_conv2.m (Otomatik birim testler)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> Kod yapımız katı modüler prensiplere dayanır. Tüm fonksiyonlar tek sorumluluk ilkesiyle ayrı dosyalara bölünmüş ve birim testlerle doğrulanmıştır.
+        </div>
+      </div>
+
+      <!-- SLAYT 12 -->
+      <div class="slide">
+        <div class="slide-tag">DENEYSEL BULGULAR</div>
+        <div class="slide-title">Kenar Haritalarının Karşılaştırmalı Analizi</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div>
+            <img class="slide-img" src="../results/figures/fig06_operator_comparison.png" alt="Comparison">
+          </div>
+          <div class="card">
+            <h3>Niteliksel Çıkarımlar</h3>
+            <ul>
+              <li><strong>Sobel:</strong> En temiz ve sahte kenarlardan en arınmış sonuç.</li>
+              <li><strong>Prewitt:</strong> Sobel'e yakın fakat köşegen geçişlerde gürültüye daha açık.</li>
+              <li><strong>Laplacian (Mutlak):</strong> Çift kenar etkisi ve gürültü dağılımı var.</li>
+              <li><strong>Laplacian (Sıfır Geçişi):</strong> Tek piksel inceliğinde kapalı hatlar.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> 4 yöntemin aynı filtrelenmiş görüntüdeki çıktıları yan yana. Sobel genel dirençte, Laplacian sıfır geçişi ise kenar inceliğinde liderdir.
+        </div>
+      </div>
+
+      <!-- SLAYT 13 -->
+      <div class="slide">
+        <div class="slide-tag">BİLİMSEL DOĞRULAMA</div>
+        <div class="slide-title">my_conv2 vs MATLAB Yerleşik Fonksiyonları</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div>
+            <table>
+              <tr><th>Karşılaştırma</th><th>Maks Hata</th><th>MAE</th><th>PSNR</th></tr>
+              <tr><td>my_conv2 vs conv2</td><td><strong>2.22e-16</strong></td><td>1.85e-17</td><td><strong>Inf</strong></td></tr>
+              <tr><td>my_conv2 vs imfilter</td><td><strong>4.44e-16</strong></td><td>3.12e-17</td><td><strong>Inf</strong></td></tr>
+              <tr><td>Gauss 5x5 (σ=1.0)</td><td>0.2185</td><td>0.0281</td><td><strong>26.46 dB</strong></td></tr>
+            </table>
+            <p style="font-size: 11px; margin-top: 10px; color: var(--muted);">Maksimum mutlak hata 10^-16 seviyesindedir (IEEE 754 Machine Epsilon). my_conv2 MATLAB C motoru ile %100 özdeştir.</p>
+          </div>
+          <div>
+            <img class="slide-img" src="../results/figures/fig07_custom_vs_builtin_diff.png" alt="Diff">
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (45 sn):</strong> Kendi yazdığımız my_conv2 ile MATLAB conv2 arasındaki maksimum fark 2.22 x 10^-16'dır. Yani algoritmamız MATLAB'in yerleşik C derleyicisi ile matematiksel olarak birebir aynı sonucu vermektedir.
+        </div>
+      </div>
+
+      <!-- SLAYT 14 -->
+      <div class="slide">
+        <div class="slide-tag">KARŞILAŞTIRMA</div>
+        <div class="slide-title">Operatör Değerlendirme Matrisi ve Tavsiyeler</div>
+        <div class="accent-bar"></div>
+        <table>
+          <tr><th>Kriter</th><th>Sobel</th><th>Prewitt</th><th>Laplacian (ZC)</th></tr>
+          <tr><td>Türev Mertebesi</td><td>1. Derece</td><td>1. Derece</td><td>2. Derece</td></tr>
+          <tr><td>Yön Bilgisi (θ)</td><td>Var</td><td>Var</td><td>Yok (İzotropik)</td></tr>
+          <tr><td>Gürültü Direnci</td><td><strong>Yüksek</strong></td><td>Orta</td><td>Orta-Düşük</td></tr>
+          <tr><td>Kenar Kalınlığı</td><td>Geniş</td><td>Geniş</td><td><strong>Tek Piksel</strong></td></tr>
+        </table>
+        <div class="content-grid" style="margin-top: 14px; grid-template-columns: 1fr 1fr;">
+          <div class="card" style="padding: 12px;">
+            <strong style="color: var(--orange);">Ne Zaman Sobel?</strong>
+            <p style="font-size: 12px;">Gürültülü sahneler, robotik görme, yön bilgisi gereken uygulamalar.</p>
+          </div>
+          <div class="card" style="padding: 12px;">
+            <strong style="color: var(--teal);">Ne Zaman Laplacian (ZC)?</strong>
+            <p style="font-size: 12px;">Medikal segmentasyon, hassas boyut ölçümü, kapalı kontur çıkarımı.</p>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (40 sn):</strong> Özetle: Sobel gürültü direnci ve yön bilgisiyle genel uygulamalarda idealdir; Laplacian sıfır geçişi ise hassas sınır tespiti gereken medikal alanlarda öne çıkar.
+        </div>
+      </div>
+
+      <!-- SLAYT 15 -->
+      <div class="slide">
+        <div class="slide-tag">SONUÇ</div>
+        <div class="slide-title">Sonuçlar ve Gelecek Çalışmalar</div>
+        <div class="accent-bar"></div>
+        <div class="content-grid">
+          <div class="card">
+            <h3>Elde Edilen Başarılar</h3>
+            <ul>
+              <li>✔ my_conv2 ile $10^{-16}$ makine hassasiyetinde tam doğruluk.</li>
+              <li>✔ 'replicate' dolgusu ile kenar parlaklığının korunması.</li>
+              <li>✔ 5x5, $\sigma=1.0$ Gauss filtresi ile optimal gürültü bastırma.</li>
+              <li>✔ 1. ve 2. derece türevlerin net ayrımı ve sıfır geçişi başarısı.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Gelecek Çalışmalar</h3>
+            <ul>
+              <li>▸ Canny dedektörü (Non-Maximum Suppression ve histerezis).</li>
+              <li>▸ Morfolojik işlemler (dilation/erosion) ile kenar bütünleme.</li>
+              <li>▸ CUDA / C-MEX ile gerçek zamanlı video hızlandırması.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (35 sn):</strong> Projemiz hedeflenen tüm kısıtları başarıyla sağlamıştır. Gelecek adımlarda Canny histerezis eşiklemesi ve CUDA GPU paralelleştirmesi üzerinde durmayı planlıyoruz.
+        </div>
+      </div>
+
+      <!-- SLAYT 16 -->
+      <div class="slide">
+        <div class="slide-tag">LİTERATÜR</div>
+        <div class="slide-title">Kaynakça ve Açık Kaynak Referansları</div>
+        <div class="accent-bar"></div>
+        <div class="card">
+          <ul style="font-size: 12px;">
+            <li>1. Gonzalez, R. C., & Woods, R. E. (2018). <em>Digital Image Processing</em> (4th ed.). Pearson.</li>
+            <li>2. Marr, D., & Hildreth, E. (1980). Theory of edge detection. <em>Proc. Royal Soc. London</em>, 207, 187-217.</li>
+            <li>3. Canny, J. (1986). A computational approach to edge detection. <em>IEEE TPAMI</em>, 8(6), 679-698.</li>
+            <li>4. MathWorks (2024). <em>Image Processing Toolbox Documentation</em>.</li>
+            <li>• Açık Kaynak: arijit-dasgupta/MachineVision_ImageProcessing, shashwb/Edge-Detection-MATLAB, Halkhoori2000, tecnickcom/edgetools.</li>
+          </ul>
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (25 sn):</strong> Gonzalez & Woods, Marr-Hildreth literatürü ve saygın açık kaynak GitHub depoları projemizin akademik temelini oluşturmuştur.
+        </div>
+      </div>
+
+      <!-- SLAYT 17 -->
+      <div class="slide cover-slide" style="align-items: center; text-align: center;">
+        <div class="cover-title" style="font-size: 42px;">TEŞEKKÜR EDERİM</div>
+        <div class="cover-sub" style="font-size: 18px; margin-bottom: 24px;">Sorularınız ve katkılarınız için hazırım.</div>
+        <div style="font-size: 14px; color: var(--teal); margin-bottom: 8px;">Kocaeli Üniversitesi • Yapay Zekâ ve Makine Öğrenmesi Bölümü</div>
+        <div style="font-size: 13px; color: white; margin-bottom: 24px;">Danial Pourrashidi | Bilimsel Hesaplama Teknikleri Dersi</div>
+        <div style="font-size: 12px; color: var(--orange); background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 6px;">
+          GitHub: https://github.com/Danial-Pourrashidi/matlab-edge-detection-and-filtering
+        </div>
+        <div class="speaker-notes">
+          <strong>Konuşmacı Notu (20 sn):</strong> Beni dinlediğiniz için teşekkür ederim. Projenin tüm kodları GitHub'da mevcuttur. Sorularınızı yanıtlamaktan memnuniyet duyarım.
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slide-indicator');
+
+    function showSlide(index) {
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === index);
+      });
+      indicator.textContent = `${index + 1} / ${slides.length}`;
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        showSlide(currentSlide);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        showSlide(currentSlide);
+      }
+    }
+
+    function toggleNotes() {
+      document.querySelectorAll('.speaker-notes').forEach(el => {
+        el.classList.toggle('visible');
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') nextSlide();
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prevSlide();
+      else if (e.key.toLowerCase() === 'n') toggleNotes();
+    });
+  </script>
+</body>
+</html>

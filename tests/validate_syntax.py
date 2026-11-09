@@ -5,13 +5,16 @@ import sys
 files = [
     'src/my_conv2.m',
     'src/gaussian_kernel.m',
+    'src/log_kernel.m',
     'src/add_noise.m',
     'src/apply_sobel.m',
     'src/apply_prewitt.m',
     'src/apply_laplacian.m',
+    'src/non_maximum_suppression.m',
     'src/evaluate_metrics.m',
     'tests/test_my_conv2.m',
-    'main.m'
+    'main.m',
+    'demo_live.m'
 ]
 
 def check_file(path):

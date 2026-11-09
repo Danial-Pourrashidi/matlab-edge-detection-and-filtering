@@ -1,140 +1,173 @@
 # Görüntü İşleme ile Kenar Tespit ve Filtreleme Algoritmaları (MATLAB)
 
-Bu proje; sayısal görüntü işleme alanında uzamsal konvolüsyon, 2B Gauss gürültü azaltma ve türev operatörleri (Sobel, Prewitt, Laplacian) ile kenar tespiti algoritmalarının **MATLAB hazır fonksiyonlarına bağımlı olmaksızın, sıfırdan (`from scratch`) for döngüleri ve matris matematiğiyle** geliştirilmesini ve MATLAB yerleşik fonksiyonlarıyla (`conv2`, `imfilter`) karşılaştırılmasını kapsar.
+**Kocaeli Üniversitesi • Yapay Zekâ ve Makine Öğrenmesi Bölümü**  
+**Ders:** Bilimsel Hesaplama Teknikleri  
+**Yürütücü:** Danial Pourrashidi  
+**Lisans:** MIT Lisansı  
 
 ---
 
-## 📌 Proje Özellikleri
+## 📌 Proje Genel Bakışı
 
-1. **Sıfırdan 2B Konvolüsyon (`my_conv2.m`):**
-   - Matematiksel tanıma uygun olarak çekirdeği 180 derece döndürme (`rot90(kernel, 2)`).
-   - Çift `for` döngüsü ile piksel bazında lokal çarpım ve toplama.
-   - Sınır pikselleri için 3 farklı dolgu (padding) seçeneği: `'zero'`, `'replicate'`, `'symmetric'`.
-   - Harici kütüphanelere (`padarray` vb.) ihtiyaç duymayan saf MATLAB matris indekslemesi.
-
-2. **2B Gauss Yumuşatma Filtresi (`gaussian_kernel.m`):**
-   - İki boyutlu sürekli Gauss dağılımının ayrık ızgarada örneklenmesi.
-   - Parlaklık ve enerji korunumu için çekirdek katsayılarının toplamının 1'e normalizasyonu.
-   - $3\times3$, $5\times5$, $7\times7$ çekirdek boyutları ve $\sigma = 0.5, 1.0, 2.0$ parametrik analizleri.
-
-3. **Gürültü Simülasyonu (`add_noise.m`):**
-   - Gauss gürültüsü ($\mu$, $\sigma^2$).
-   - Tuz ve Biber (Salt & Pepper) gürültüsü ($d$ yoğunluğu).
-   - $[0, 1]$ aralığında otomatik dinamik aralık kırpması (clamping).
-
-4. **Birinci Derece Gradyan Operatörleri (`apply_sobel.m`, `apply_prewitt.m`):**
-   - $G_x$ (yatay türev / dikey kenar) ve $G_y$ (dikey türev / yatay kenar) matrisleri.
-   - Gradyan büyüklüğü: $M = \sqrt{G_x^2 + G_y^2}$.
-   - Gradyan yön açısı: $\theta = \text{atan2}(G_y, G_x)$.
-   - Otomatik istatistiksel eşikleme ile ikili (binary) kenar haritaları.
-
-5. **İkinci Derece Laplacian Operatörü (`apply_laplacian.m`):**
-   - 4-komşuluk ve 8-komşuluk Laplace çekirdekleri.
-   - **Yöntem 1:** Mutlak genlik eşikleme ($|\nabla^2 I| \ge T$).
-   - **Yöntem 2:** Sıfır geçişi (Zero-Crossing) tespiti (zıt işaretli komşu pikseller ve dik eğim kontrolü).
-
-6. **Kapsamlı Karşılaştırma ve Metrik Analizi (`evaluate_metrics.m`):**
-   - Maksimum Mutlak Hata (Max Absolute Error).
-   - Ortalama Mutlak Hata (MAE).
-   - Ortalama Karesel Hata (MSE).
-   - Tepe Sinyal-Gürültü Oranı (PSNR - dB).
-   - Çalışma süresi (Execution Time - `tic`/`toc`).
-   - Sonuçların `results/metrics.csv` dosyasına otomatik kaydedilmesi.
+Bu proje; sayısal görüntü işleme alanında uzamsal konvolüsyon, 2B Gauss gürültü azaltma ve türev operatörleri (Sobel, Prewitt, Laplacian) ile kenar tespiti algoritmalarının **MATLAB hazır kütüphanelerine bağımlı olmaksızın, sıfırdan (`from scratch`) çift for döngüleri ve matris matematiğiyle** geliştirilmesini, sınır koşullarının modellenmesini ve yerleşik MATLAB fonksiyonlarıyla (`conv2`, `imfilter`) sayısal doğruluk ($10^{-16}$) ve başarım açısından karşılaştırılmasını kapsar.
 
 ---
 
-## 📂 Dosya ve Dizin Yapısı
+## 🖼️ Deneysel Sonuçlar ve Görsel Çıktılar
+
+Aşağıda projenin `main.m` betiği tarafından üretilen yüksek çözünürlüklü karşılaştırma figürleri yer almaktadır:
+
+### 1. Orijinal Referans Görüntü ve Yapay Gürültü Simülasyonu
+Gauss gürültüsü ($\sigma^2 = 0.008$) ve tuz-biber gürültüsü ($d = 0.05$) eklenerek diferansiyel operatörlerin gürültü duyarlılığı test edilmiştir.
+
+<p align="center">
+  <img src="results/figures/fig01_original_and_noise.png" alt="Orijinal ve Gürültülü Görüntüler" width="950">
+</p>
+
+---
+
+### 2. 2D Gauss Filtresi ile Parametrik Gürültü Azaltma Grid Analizi
+$3\times3, 5\times5, 7\times7$ çekirdek boyutları ve $\sigma \in \{0.5, 1.0, 2.0\}$ parametreleri taranmış; $5\times5, \sigma=1.0$ kombinasyonunda **26.46 dB PSNR** ile en yüksek kenar koruma dengesi elde edilmiştir.
+
+<p align="center">
+  <img src="results/figures/fig02_gaussian_filtering_grid.png" alt="Gauss Filtreleme Grid Analizi" width="950">
+</p>
+
+---
+
+### 3. Sobel Gradyan Operatörü ve Vektör Analizi
+Yatay türev ($G_x$), dikey türev ($G_y$), gradyan büyüklüğü ($M = \sqrt{G_x^2 + G_y^2}$), yön açısı ($\theta = \text{atan2}(G_y, G_x)$) ve istatistiksel adaptif eşiklenmiş ikili kenar haritası.
+
+<p align="center">
+  <img src="results/figures/fig03_sobel_analysis.png" alt="Sobel Kenar Tespiti Analizi" width="950">
+</p>
+
+---
+
+### 4. Prewitt Gradyan Operatörü ve Vektör Analizi
+Düz aritmetik ortalama ağırlıklı $P_x$ ve $P_y$ çekirdekleri ile birinci derece gradyan bileşenleri ve ikili kenar haritası.
+
+<p align="center">
+  <img src="results/figures/fig04_prewitt_analysis.png" alt="Prewitt Kenar Tespiti Analizi" width="950">
+</p>
+
+---
+
+### 5. Laplacian İkinci Derece Türev ve Sıfır Geçişi (Zero-Crossing)
+İzotropik Laplace ($\nabla^2 I$) yanıtı, mutlak genlik eşikleme ($|\nabla^2 I| \ge T$) ve 4 ana doğrultuda komşu zıt işaret/eğim kontrolü yapan **Sıfır Geçişi (Zero-Crossing)** karşılaştırması.
+
+<p align="center">
+  <img src="results/figures/fig05_laplacian_analysis.png" alt="Laplacian ve Sıfır Geçişi Analizi" width="950">
+</p>
+
+---
+
+### 6. Kenar Operatörlerinin Çoklu Karşılaştırması
+Sobel, Prewitt, Laplacian (Mutlak Eşik) ve Laplacian (Sıfır Geçişi) yöntemlerinin aynı filtrelenmiş görüntü üzerindeki ikili kenar çıktıları yan yana kıyaslanmıştır.
+
+<p align="center">
+  <img src="results/figures/fig06_operator_comparison.png" alt="Kenar Operatörleri Karşılaştırması" width="950">
+</p>
+
+---
+
+### 7. Sayısal Doğrulama: `my_conv2` vs MATLAB Yerleşik `conv2`
+Sıfırdan çift for döngüsüyle yazdığımız `my_conv2` ile MATLAB'in C tabanlı `conv2` fonksiyonu arasındaki mutlak fark matrisi $10^{-16}$ (IEEE 754 Machine Epsilon) seviyesindedir. İki yöntem matematiksel olarak **%100 özdeştir**.
+
+<p align="center">
+  <img src="results/figures/fig07_custom_vs_builtin_diff.png" alt="my_conv2 vs MATLAB conv2 Fark Haritası" width="950">
+</p>
+
+---
+
+## 📊 Sayısal Başarım ve Hata Metrikleri Tablosu (`results/metrics.csv`)
+
+| Test / Karşılaştırma Senaryosu | Maksimum Mutlak Hata | Ortalama Hata (MAE) | Ortalama Karesel Hata (MSE) | PSNR (dB) | Çalışma Süresi |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`my_conv2(zero)` vs `conv2(same)`** | **$2.22 \times 10^{-16}$** | **$1.85 \times 10^{-17}$** | **$0.00$** | **$\infty$** | $0.1824\text{ s}$ |
+| **`my_conv2(rep)` vs `imfilter`** | **$4.44 \times 10^{-16}$** | **$3.12 \times 10^{-17}$** | **$0.00$** | **$\infty$** | $0.1841\text{ s}$ |
+| **Gürültü: Gauss ($\sigma^2=0.008$)** | $0.4851$ | $0.0682$ | $0.0079$ | $21.01\text{ dB}$ | N/A |
+| **Gürültü: Tuz-Biber ($d=0.05$)** | $1.0000$ | $0.0248$ | $0.0248$ | $16.06\text{ dB}$ | N/A |
+| **Gauss $3\times3$ ($\sigma=1.0$)** | $0.2450$ | $0.0331$ | $0.0031$ | $25.13\text{ dB}$ | N/A |
+| **Gauss $5\times5$ ($\sigma=1.0$)** | **$0.2185$** | **$0.0281$** | **$0.0023$** | **$26.46\text{ dB}$** | N/A |
+| **Gauss $7\times7$ ($\sigma=1.0$)** | $0.2240$ | $0.0292$ | $0.0025$ | $26.11\text{ dB}$ | N/A |
+
+---
+
+## 🔬 Kenar Operatörleri Karşılaştırma Matrisi
+
+| Kriter | Sobel Operatörü | Prewitt Operatörü | Laplacian (Mutlak Eşik) | Laplacian (Sıfır Geçişi) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Türev Derecesi** | 1. Derece ($\nabla I$) | 1. Derece ($\nabla I$) | 2. Derece ($\nabla^2 I$) | 2. Derece ($\nabla^2 I$) |
+| **Yön Bilgisi ($\theta$)** | Var ($\text{atan2}(G_y, G_x)$) | Var ($\text{atan2}(G_y, G_x)$) | Yok (İzotropik skaler) | Yok (İzotropik skaler) |
+| **Gürültüye Direnç** | **Yüksek** (Merkez katsayısı: 2) | Orta (Düz ortalama) | Çok Düşük (Ön filtreleme şart) | Orta-Düşük (Eğim şartlı) |
+| **Kenar Kalınlığı** | Geniş (İnceltme gerekir) | Geniş (İnceltme gerekir) | Dağınık / Çift Kenar | **İnce (Tek piksel kontur)** |
+| **Hesaplama Yükü** | $2 \times (3\times3)$ Konvolüsyon | $2 \times (3\times3)$ Konvolüsyon | $1 \times (3\times3)$ Konvolüsyon | Konvolüsyon + 4 Yönlü Tarama |
+
+---
+
+## 📁 Proje Dosya ve Klasör Hiyerarşisi
 
 ```text
-BHT Proje/
-├── README.md                      # Proje tanıtımı, kurulum ve kullanım kılavuzu
-├── main.m                         # Uçtan uca ana yürütme ve görselleştirme betiği
-├── src/                           # Sıfırdan geliştirilen kaynak fonksiyonlar
-│   ├── my_conv2.m                 # 2B for döngülü konvolüsyon fonksiyonu
-│   ├── gaussian_kernel.m          # Parametrik 2B Gauss çekirdek üretici
-│   ├── add_noise.m                # Gauss ve tuz-biber gürültü ekleme modülü
-│   ├── apply_sobel.m              # Sobel kenar dedektörü (Gx, Gy, Mag, Dir, Eşik)
-│   ├── apply_prewitt.m            # Prewitt kenar dedektörü
-│   ├── apply_laplacian.m          # Laplacian (Mutlak eşik ve Sıfır Geçişi)
-│   └── evaluate_metrics.m         # Hata metrikleri ve karşılaştırma aracı
-├── tests/                         # Doğrulama ve testler
-│   └── test_my_conv2.m            # Birim testler ve conv2 matematiksel denklik testi
-├── references/                    # Açık kaynak depo incelemeleri
-│   └── github_repos.md            # GitHub depoları, lisansları ve katkı analizi
-├── report/                        # Akademik ve bilimsel rapor
-│   └── report_template.md         # 9 bölümlü kapsamlı bilimsel proje raporu
-└── results/                       # Otomatik üretilen çıktılar
-    ├── figures/                   # Üretilen yüksek çözünürlüklü PNG grafikleri
-    └── metrics.csv                # Tüm testlerin sayısal metrik tablosu
+matlab-edge-detection-and-filtering/
+├── README.md                                      # Proje tanıtımı, doğrudan gömülü görseller ve metrikler
+├── main.m                                         # Uçtan uca ana yürütme, görselleştirme ve CSV aktarım betiği
+├── demo_live.m                                    # Bölüm bölüm (Ctrl+Enter) çalıştırılabilir interaktif demo
+├── generate_figures.py                            # Yüksek çözünürlüklü karşılaştırma figürleri üretici
+├── presentation/                                  # Sunum materyalleri
+│   ├── Kenar_Tespit_ve_Filtreleme_Sunumu.pptx     # 17 slaytlık profesyonel PowerPoint sunumu (Konuşmacı Notlu)
+│   ├── slides.html                                # İnteraktif modern web slayt sunumu (KaTeX destekli)
+│   ├── slides.md                                  # Düzenlenebilir sunum metni ve konuşmacı notları
+│   └── build_presentation.py                      # Sunum oluşturucu Python scripti
+├── references/
+│   └── github_repos.md                            # Açık kaynak GitHub depoları ve lisans analizleri
+├── report/
+│   └── report_template.md                         # 9 bölümlük akademik bilimsel proje raporu
+├── results/
+│   ├── metrics.csv                                # Sayısal hata ve performans metrik tablosu
+│   └── figures/                                   # Üretilen 7 adet yüksek çözünürlüklü PNG figürü
+├── src/                                           # Sıfırdan geliştirilen bağımsız fonksiyonlar
+│   ├── my_conv2.m                                 # 2B for döngülü konvolüsyon (rot90, 3 dolgu modu)
+│   ├── gaussian_kernel.m                          # Normalize 2B Gauss çekirdeği üretici
+│   ├── log_kernel.m                               # Marr-Hildreth analitik LoG çekirdeği
+│   ├── add_noise.m                                # Gauss ve tuz-biber gürültüsü enjeksiyon modülü
+│   ├── apply_sobel.m                              # Sobel gradyan operatörü ve adaptif eşikleme
+│   ├── apply_prewitt.m                            # Prewitt gradyan operatörü ve eşikleme
+│   ├── apply_laplacian.m                          # Laplacian ve Sıfır Geçişi (Zero-Crossing) dedektörü
+│   ├── non_maximum_suppression.m                  # Canny 2. adımı: Gradyan yönünde kenar inceltme
+│   └── evaluate_metrics.m                         # Maksimum Hata, MAE, MSE, PSNR ve Süre analizörü
+└── tests/
+    ├── test_my_conv2.m                            # 5 adımlı MATLAB birim testleri (Küçük matris, conv2 testi)
+    └── validate_syntax.py                         # Statik sözdizimi doğrulayıcı
 ```
 
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
 
-### Gereksinimler
-- MATLAB R2023b veya üzeri (kod geriye dönük uyumludur, önceki sürümlerde de sorunsuz çalışır).
-- Image Processing Toolbox (isteğe bağlı; kodlar tamamen sıfırdan yazıldığı için toolbox olmadan da sentetik görüntü fallback'i ile %100 çalışır).
-
-### 1. Birim Testlerin Çalıştırılması
-Kendi yazdığımız `my_conv2` fonksiyonunun doğruluğunu test etmek için:
+### 1. Birim Testleri Çalıştırma
+Kendi yazdığımız `my_conv2` fonksiyonunun doğruluğunu 5 farklı senaryoda test etmek için:
 
 ```matlab
 >> cd('C:\Users\fmn17\OneDrive\Desktop\BHT Proje');
 >> run('tests/test_my_conv2.m');
 ```
 
-**Beklenen Test Çıktısı:**
-```text
-====================================================
-  my_conv2 Doğrulama ve Birim Testleri Başlatılıyor  
-====================================================
-
-[TEST 1] Küçük 3x3 Matris ile Elle Hesaplama Kontrolü... [BAŞARILI] (Merkez piksel: 15.0000 == 15.0)
-[TEST 2] Asimetrik Çekirdek ve conv2(..., "same") Karşılaştırması... [BAŞARILI] (Maksimum Mutlak Hata = 0.00e+00)
-[TEST 3] 64x64 Rastgele Matris ve 5x5 Çekirdek Testi... [BAŞARILI] (Maksimum Mutlak Hata = 2.22e-16)
-[TEST 4] "replicate" Sınır Dolgusu Fonksiyonel Testi... [BAŞARILI] (Köşe piksel beklenen: 23.3333, üretilen: 23.3333)
-[TEST 5] "symmetric" Ayna Dolgusu Doğrulaması... [BAŞARILI] (İç piksel beklenen: 0.0000, üretilen: 0.0000)
-
-====================================================
-  TEST SONUCU: 5 / 5 Test Başarıyla Geçti! (100%) 
-  my_conv2 matematiksel ve algoritmik olarak onaylandı.
-====================================================
-```
-
-### 2. Ana Uygulamanın Yürütülmesi
-Tüm deneyleri çalıştırmak, görselleri üretmek ve CSV metriklerini kaydetmek için:
+### 2. Ana Deney Betiğini Çalıştırma
+Tüm görüntüleri işlemek, figürleri üretmek ve `results/metrics.csv` dosyasını oluşturmak için:
 
 ```matlab
 >> main
 ```
 
----
+### 3. İnteraktif Bölümlü Demo (`demo_live.m`)
+MATLAB Editor içinde adım adım ("Run Section" / `Ctrl+Enter`) LoG filtreleme ve Non-Maximum Suppression (kenar inceltme) dahil tüm aşamaları interaktif gözlemlemek için:
 
-## 📊 Üretilen Görsel Çıktılar (`results/figures/`)
-
-| Dosya Adı | Açıklama |
-| :--- | :--- |
-| `fig01_original_and_noise.png` | Orijinal görüntü, Gauss gürültüsü ve Tuz-Biber gürültüsü yan yana. |
-| `fig02_gaussian_filtering_grid.png` | $3\times3, 5\times5, 7\times7$ çekirdekler ve $\sigma \in \{0.5, 1.0, 2.0\}$ ile $3\times3$ filtreleme ızgarası ve PSNR değerleri. |
-| `fig03_sobel_analysis.png` | Sobel $G_x$, $G_y$, gradyan büyüklüğü, yön haritası ve eşiklenmiş ikili kenarlar. |
-| `fig04_prewitt_analysis.png` | Prewitt bileşenleri, büyüklük, yön ve ikili kenarlar. |
-| `fig05_laplacian_analysis.png` | Ham Laplace ($\nabla^2 I$), mutlak genlik eşikleme ve sıfır geçişi (zero-crossing) kenarları. |
-| `fig06_operator_comparison.png` | Sobel, Prewitt, Laplacian (Mutlak) ve Laplacian (Sıfır Geçişi) yöntemlerinin 4'lü karşılaştırması. |
-| `fig07_custom_vs_builtin_diff.png` | `my_conv2` ile `conv2` sonuçları ve aralarındaki fark haritası ($10^{-16}$ makine hassasiyeti). |
+```matlab
+>> demo_live
+```
 
 ---
 
-## 📈 Örnek Metrik Çıktısı (`results/metrics.csv`)
-
-| Test / Filtre Adı | Maks Mutlak Hata | MAE | MSE | PSNR (dB) | Süre (s) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| `my_conv2(zero) vs conv2(same)` | $2.22 \times 10^{-16}$ | $1.85 \times 10^{-17}$ | $0.00$ | $\infty$ | $0.1824$ |
-| `my_conv2(rep) vs imfilter` | $4.44 \times 10^{-16}$ | $3.12 \times 10^{-17}$ | $0.00$ | $\infty$ | $0.1841$ |
-| `Gauss_5x5_sigma1.0` | $0.2185$ | $0.0281$ | $0.0022$ | $26.45$ | N/A |
-
----
-
-## 📚 Açık Kaynak Referansları
-Projede yararlanılan açık kaynak depoların lisans ve mimari analizleri [`references/github_repos.md`](references/github_repos.md) dosyasında belgelenmiştir. Tüm algoritmalar özgün ve bağımsız olarak geliştirilmiştir.
-
+## 🎓 Akademik Bilgi ve Telif
+Bu proje, **Kocaeli Üniversitesi Yapay Zekâ ve Makine Öğrenmesi Bölümü** Bilimsel Hesaplama Teknikleri dersi kapsamında hazırlanmıştır. Tüm kaynak kodlar temiz oda (`clean-room`) yaklaşımıyla sıfırdan bağımsız olarak yazılmış olup MIT lisansı altındadır.
