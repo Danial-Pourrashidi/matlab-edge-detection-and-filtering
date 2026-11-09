@@ -148,7 +148,7 @@ matlab-edge-detection-and-filtering/
 Kendi yazdığımız `my_conv2` fonksiyonunun doğruluğunu 5 farklı senaryoda test etmek için:
 
 ```matlab
->> cd('C:\Users\fmn17\OneDrive\Desktop\BHT Proje');
+>> cd('C:\BHT Proje');
 >> run('tests/test_my_conv2.m');
 ```
 
