@@ -3,7 +3,6 @@
 **Kocaeli Üniversitesi • Yapay Zekâ ve Makine Öğrenmesi Bölümü**  
 **Ders:** Bilimsel Hesaplama Teknikleri  
 **Yürütücü:** Danial Pourrashidi  
-**Lisans:** MIT Lisansı  
 
 ---
 
